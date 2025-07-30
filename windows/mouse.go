@@ -201,7 +201,37 @@ func MiddleClick(x, y int) error {
 	return Click(MouseMiddleButton, x, y)
 }
 
-// DoubleClick and TripleClick perform multiple clicks at the specified (x, y) coordinates.
+// X1Click performs a click with the first extra mouse button (usually the back button) at the specified (x, y) coordinates.
+func X1Click(x, y int) error {
+	return Click(MouseX1Button, x, y)
+}
+
+// X2Click performs a click with the second extra mouse button (usually the forward button) at the specified (x, y) coordinates.
+func X2Click(x, y int) error {
+	return Click(MouseX2Button, x, y)
+}
+
+// PrimaryClick perform a click with the primary mouse button at the specified (x, y) coordinates.
+// The primary button is usually the physical left button, only if swapped, it will be the right button.
+func PrimaryClick(x, y int) error {
+	mb, err := normalizeMouseButton(MousePrimaryButton)
+	if err != nil {
+		return fmt.Errorf("invalid primary mouse button: %v", err)
+	}
+	return Click(mb, x, y)
+}
+
+// SecondaryClick perform a click with the secondary mouse button at the specified (x, y) coordinates.
+// The secondary button is usually the physical right button, only if swapped, it will be the left button.
+func SecondaryClick(x, y int) error {
+	mb, err := normalizeMouseButton(MouseSecondaryButton)
+	if err != nil {
+		return fmt.Errorf("invalid secondary mouse button: %v", err)
+	}
+	return Click(mb, x, y)
+}
+
+// DoubleClick performs a double mopuse button click at the specified (x, y) coordinates.
 func DoubleClick(mb MouseButton, x, y int) error {
 	return ClickAt(mb, x, y, 2)
 }
@@ -231,7 +261,7 @@ func ScrollRaw(x, y, dwData int) {
 	sendMouseEvent(win32.MOUSEEVENTF_WHEEL, x, y, dwData)
 }
 
-// Not supported on Windows, we default to Scroll
+// HorizontalScroll performs a horizontal mouse scroll at the specified (x, y) coordinates.
 func HorizontalScroll(x, y, notches int) {
 	width, height := Size()
 	x = max(0, min(x, width-1))
@@ -240,7 +270,7 @@ func HorizontalScroll(x, y, notches int) {
 	sendMouseEvent(win32.MOUSEEVENTF_HWHEEL, x, y, notches)
 }
 
-// Not supported on Windows, we default to Scroll
+// VerticalScroll performs a vertical mouse scroll at the specified (x, y) coordinates.
 func VerticalScroll(x, y, notches int) {
 	Scroll(x, y, notches)
 }
