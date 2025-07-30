@@ -134,22 +134,22 @@ func testScroll() testResult {
 }
 
 func testSize() testResult {
-	w, h := goautogui.Size()
-	if w <= 0 || h <= 0 {
-		return testResult{"Size", fmt.Errorf("invalid size %dx%d", w, h)}
+	dim := goautogui.GetScreenDimensions()
+	if dim.X <= 0 || dim.Y <= 0 {
+		return testResult{"Size", fmt.Errorf("invalid size %dx%d", dim.X, dim.Y)}
 	}
 	return testResult{"Size", nil}
 }
 
 func testVirtualOffset() testResult {
-	offset := goautogui.VirtualOffset()
+	offset := goautogui.GetVirtualScreenOffset()
 	_ = offset
 	return testResult{"VirtualOffset", nil}
 }
 
 func testOnScreen() testResult {
-	w, h := goautogui.Size()
-	if !goautogui.OnScreen(w/2, h/2) {
+	dim := goautogui.GetScreenDimensions()
+	if !goautogui.OnScreen(dim.X/2, dim.Y/2) {
 		return testResult{"OnScreen", errors.New("center should be on-screen")}
 	}
 	if goautogui.OnScreen(-10, -10) {

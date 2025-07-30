@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	win32 "github.com/zzl/go-win32api/v2/win32"
+	"github.com/zzl/go-win32api/v2/win32"
 )
 
 // MouseButton represents different mouse buttons
@@ -95,7 +95,8 @@ func normalizeMouseButton(mb MouseButton) (MouseButton, error) {
 // If event has MOUSEEVENTF_XDOWN or MOUSEEVENTF_XUP, then it specifies the X button number (1 or 2).
 // Else, it should be 0.
 func sendMouseEvent(event win32.MOUSE_EVENT_FLAGS, x, y, dwData int) {
-	width, height := Size()
+	dim := GetScreenDimensions()
+	width, height := dim.X, dim.Y
 
 	convertedX := x * 65535 / (width - 1)
 	convertedY := y * 65535 / (height - 1)
@@ -247,7 +248,8 @@ func TripleClick(mb MouseButton, x, y int) error {
 // Each scroll notch is typically 120 units in Windows.
 // Call ScrollRaw to specify the exact scroll amount.
 func Scroll(x, y, notches int) {
-	width, height := Size()
+	dim := GetScreenDimensions()
+	width, height := dim.X, dim.Y
 	x = max(0, min(x, width-1))
 	y = max(0, min(y, height-1))
 	dwData := notches * int(win32.WHEEL_DELTA) // 120 is the standard scroll amount in Windows
@@ -257,7 +259,8 @@ func Scroll(x, y, notches int) {
 // ScrollRaw performs a mouse scroll at the specified (x, y) coordinates with a custom scroll amount.
 // This allows for more precise control over the scroll amount. dwData is the number of scroll notches.
 func ScrollRaw(x, y, dwData int) {
-	width, height := Size()
+	dim := GetScreenDimensions()
+	width, height := dim.X, dim.Y
 	x = max(0, min(x, width-1))
 	y = max(0, min(y, height-1))
 	sendMouseEvent(win32.MOUSEEVENTF_WHEEL, x, y, dwData)
@@ -265,7 +268,8 @@ func ScrollRaw(x, y, dwData int) {
 
 // HorizontalScroll performs a horizontal mouse scroll at the specified (x, y) coordinates.
 func HorizontalScroll(x, y, notches int) {
-	width, height := Size()
+	dim := GetScreenDimensions()
+	width, height := dim.X, dim.Y
 	x = max(0, min(x, width-1))
 	y = max(0, min(y, height-1))
 
@@ -290,7 +294,8 @@ func Move(x, y int) {
 	newY := currentPos.Y + y
 
 	// Ensure new position is within screen bounds
-	width, height := Size()
+	dim := GetScreenDimensions()
+	width, height := dim.X, dim.Y
 	newX = max(0, min(newX, width-1))
 	newY = max(0, min(newY, height-1))
 
@@ -331,7 +336,8 @@ func DragTo(x, y int, duration float64, mb MouseButton) error {
 	}
 
 	// Calculate steps for smooth movement
-	width, height := Size()
+	dim := GetScreenDimensions()
+	width, height := dim.X, dim.Y
 	numSteps := max(width, height)
 	sleepAmount := duration / float64(numSteps)
 	const MINIMUM_SLEEP = 0.001 // seconds
