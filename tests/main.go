@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	goautogui "goautogui/windows"
+	goautogui "github.com/mhmdibrahimm/goautogui/windows"
 )
 
 // testResult holds the outcome of a single test.

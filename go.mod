@@ -1,4 +1,4 @@
-module goautogui
+module github.com/mhmdibrahimm/goautogui
 
 go 1.23.5
 
