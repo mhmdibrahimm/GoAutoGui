@@ -4,6 +4,7 @@ package windows
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"syscall"
 	"unsafe"
@@ -33,23 +34,25 @@ func Position() POINT {
 	return POINT{X: int(cursor.X), Y: int(cursor.Y)}
 }
 
+// GetScreenDimensions returns the width and height of the primary display in pixels.
+func GetScreenDimensions() POINT {
+	return POINT{int(win32.GetSystemMetrics(win32.SM_CXSCREEN)), int(win32.GetSystemMetrics(win32.SM_CYSCREEN))}
+}
+
 // GetVirtualScreenOffset returns the top‑left origin of the virtual desktop relative
-// to the primary monitor. This is often negative if you’ve put monitors to the left/top.
+// to the primary monitor. This is often negative if you have put monitors to the left/top.
 func GetVirtualScreenOffset() POINT {
 	ox := win32.GetSystemMetrics(win32.SM_XVIRTUALSCREEN)
 	oy := win32.GetSystemMetrics(win32.SM_YVIRTUALSCREEN)
 	return POINT{int(ox), int(oy)}
 }
 
+// GetVirtualScreenSize returns the size of the virtual desktop in pixels.
+// The virtual desktop is the union of all monitors, including those that are off-screen.s
 func GetVirtualScreenSize() POINT {
 	cx := win32.GetSystemMetrics(win32.SM_CXVIRTUALSCREEN)
 	cy := win32.GetSystemMetrics(win32.SM_CYVIRTUALSCREEN)
 	return POINT{int(cx), int(cy)}
-}
-
-// GetScreenDimensions returns the width and height of the primary display in pixels.
-func GetScreenDimensions() POINT {
-	return POINT{int(win32.GetSystemMetrics(win32.SM_CXSCREEN)), int(win32.GetSystemMetrics(win32.SM_CYSCREEN))}
 }
 
 // OnScreen reports whether the point (x, y) lies within the bounds of the
@@ -88,34 +91,26 @@ func GetDisplayBounds(displayIndex int) image.Rectangle {
 		int(r.Right), int(r.Bottom))
 }
 
-// CaptureDisplay captures whole region of displayIndex'th display, starts at 0 for primary display.
-func CaptureDisplay(displayIndex int) (*image.RGBA, error) {
-	rect := GetDisplayBounds(displayIndex)
-	return CaptureRect(rect)
-}
-
-// CaptureRect captures specified region of desktop.
-func CaptureRect(rect image.Rectangle) (*image.RGBA, error) {
-	return Capture(rect.Min.X, rect.Min.Y, rect.Dx(), rect.Dy())
-}
-
+// createImage creates an image.RGBA with the specified rectangle dimensions.
 func createImage(rect image.Rectangle) (img *image.RGBA, e error) {
 	img = nil
 	e = errors.New("Cannot create image.RGBA")
 
+	// Ensure the rectangle is valid and not too large.
 	defer func() {
 		err := recover()
 		if err == nil {
 			e = nil
 		}
 	}()
+
 	// image.NewRGBA may panic if rect is too large.
 	img = image.NewRGBA(rect)
 
 	return img, e
 }
 
-// Capture captures a screenshot of the specified area (x, y, width, height) and returns it as an image.RGBA.
+// Capture captures a screenshot of the specified area (x, y, width, height).
 func Capture(x, y, width, height int) (*image.RGBA, error) {
 	rect := image.Rect(0, 0, width, height)
 	img, err := createImage(rect)
@@ -130,67 +125,130 @@ func Capture(x, y, width, height int) (*image.RGBA, error) {
 	}
 	defer win32.ReleaseDC(hwnd, hdc)
 
-	memory_device := win32.CreateCompatibleDC(hdc)
-	if memory_device == 0 {
+	memDC := win32.CreateCompatibleDC(hdc)
+	if memDC == 0 {
 		return nil, errors.New("CreateCompatibleDC failed")
 	}
-	defer win32.DeleteDC(memory_device)
+	defer win32.DeleteDC(memDC)
 
-	bitmap := win32.CreateCompatibleBitmap(hdc, int32(width), int32(height))
-	if bitmap == 0 {
+	bmp := win32.CreateCompatibleBitmap(hdc, int32(width), int32(height))
+	if bmp == 0 {
 		return nil, errors.New("CreateCompatibleBitmap failed")
 	}
-	defer win32.DeleteObject(win32.HGDIOBJ(bitmap))
+	defer win32.DeleteObject(win32.HGDIOBJ(bmp))
 
-	var header win32.BITMAPINFOHEADER
-	header.BiSize = uint32(unsafe.Sizeof(header))
-	header.BiPlanes = 1
-	header.BiBitCount = 32
-	header.BiWidth = int32(width)
-	header.BiHeight = int32(-height)
-	header.BiCompression = win32.BI_RGB
-	header.BiSizeImage = 0
+	oldObj := win32.SelectObject(memDC, win32.HGDIOBJ(bmp))
+	defer win32.SelectObject(memDC, oldObj)
 
-	bitmapDataSize := uintptr(((int64(width)*int64(header.BiBitCount) + 31) / 32) * 4 * int64(height))
-	hmem, errAlloc := win32.GlobalAlloc(win32.GMEM_MOVEABLE, bitmapDataSize)
-	if errAlloc != win32.ERROR_SUCCESS || hmem == 0 {
-		return nil, errors.New("GlobalAlloc failed")
-	}
-	defer win32.GlobalFree(hmem)
-	memptr, _ := win32.GlobalLock(hmem)
-	defer win32.GlobalUnlock(hmem)
-
-	old := win32.SelectObject(memory_device, win32.HGDIOBJ(bitmap))
-	if old == 0 {
-		return nil, errors.New("SelectObject failed")
-	}
-	defer win32.SelectObject(memory_device, old)
-
-	bitBltOk, _ := win32.BitBlt(memory_device, 0, 0, int32(width), int32(height), hdc, int32(x), int32(y), win32.SRCCOPY)
-	if bitBltOk == 0 {
+	if ok, _ := win32.BitBlt(memDC, 0, 0, int32(width), int32(height), hdc, int32(x), int32(y), win32.SRCCOPY); ok == 0 {
 		return nil, errors.New("BitBlt failed")
 	}
 
-	if win32.GetDIBits(hdc, bitmap, 0, uint32(height), memptr, (*win32.BITMAPINFO)(unsafe.Pointer(&header)), win32.DIB_RGB_COLORS) == 0 {
+	var bih win32.BITMAPINFOHEADER
+
+	bih = win32.BITMAPINFOHEADER{
+		BiSize:        uint32(unsafe.Sizeof(bih)),
+		BiPlanes:      1,
+		BiBitCount:    32,
+		BiWidth:       int32(width),
+		BiHeight:      -int32(height),
+		BiCompression: win32.BI_RGB,
+	}
+
+	byteCount := width * height * 4
+	hmem, allocErr := win32.GlobalAlloc(win32.GMEM_MOVEABLE, uintptr(byteCount))
+	if allocErr != win32.ERROR_SUCCESS || hmem == 0 {
+		return nil, errors.New("GlobalAlloc failed")
+	}
+	defer win32.GlobalFree(hmem)
+
+	memptr, _ := win32.GlobalLock(hmem)
+	defer win32.GlobalUnlock(hmem)
+
+	if win32.GetDIBits(hdc, bmp, 0, uint32(height), memptr, (*win32.BITMAPINFO)(unsafe.Pointer(&bih)), win32.DIB_RGB_COLORS) == 0 {
 		return nil, errors.New("GetDIBits failed")
 	}
 
-	i := 0
-	src := uintptr(memptr)
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			v0 := *(*uint8)(unsafe.Pointer(src))
-			v1 := *(*uint8)(unsafe.Pointer(src + uintptr(1)))
-			v2 := *(*uint8)(unsafe.Pointer(src + uintptr(2)))
+	buf := unsafe.Slice((*byte)(memptr), byteCount)
 
-			// BGRA => RGBA, and set A to 255
-			img.Pix[i], img.Pix[i+1], img.Pix[i+2], img.Pix[i+3] = v2, v1, v0, 255
-
-			i += 4
-			src += uintptr(4)
-		}
+	pix := img.Pix
+	for dst := 0; dst < byteCount; dst += 4 {
+		// RGBA ← buf[B,G,R,_]
+		pix[dst+0], pix[dst+1], pix[dst+2], pix[dst+3] =
+			buf[dst+2], buf[dst+1], buf[dst+0], 0xFF
 	}
 
+	return img, nil
+}
+
+// CaptureWindow captures the screenshot of the specified window handle (hwnd).
+// It uses the Win32 API to capture the window content, including non-client areas.
+func CaptureWindow(hwnd win32.HWND) (*image.RGBA, error) {
+	var rc win32.RECT
+	ok, winerr := win32.GetWindowRect(hwnd, &rc)
+	if ok == 0 || winerr != win32.ERROR_SUCCESS {
+		return nil, fmt.Errorf("GetWindowRect failed")
+	}
+
+	w, h := int(rc.Right-rc.Left), int(rc.Bottom-rc.Top)
+
+	hdcScreen := win32.GetWindowDC(hwnd)
+	if hdcScreen == 0 {
+		return nil, fmt.Errorf("GetWindowDC failed")
+	}
+	defer win32.ReleaseDC(hwnd, hdcScreen)
+
+	hdcMem := win32.CreateCompatibleDC(hdcScreen)
+	if hdcMem == 0 {
+		return nil, fmt.Errorf("CreateCompatibleDC failed")
+	}
+	defer win32.DeleteDC(hdcMem)
+
+	var bmi win32.BITMAPINFO
+	bmi.BmiHeader = win32.BITMAPINFOHEADER{
+		BiSize:        uint32(unsafe.Sizeof(win32.BITMAPINFOHEADER{})),
+		BiWidth:       int32(w),
+		BiHeight:      -int32(h), // top-down
+		BiPlanes:      1,
+		BiBitCount:    32,
+		BiCompression: win32.BI_RGB,
+	}
+
+	var bitsPtr unsafe.Pointer
+	hBitmap, winerr := win32.CreateDIBSection(
+		hdcScreen,
+		&bmi,
+		win32.DIB_RGB_COLORS,
+		unsafe.Pointer(&bitsPtr),
+		0,
+		0,
+	)
+
+	if hBitmap == 0 || bitsPtr == nil || winerr != win32.ERROR_SUCCESS {
+		return nil, fmt.Errorf("CreateDIBSection failed")
+	}
+	defer win32.DeleteObject(win32.HGDIOBJ(hBitmap))
+
+	old := win32.SelectObject(hdcMem, win32.HGDIOBJ(hBitmap))
+	defer win32.SelectObject(hdcMem, old)
+
+	if win32.PrintWindow(hwnd, hdcMem, win32.PRINT_WINDOW_FLAGS(2)) == 0 { // win32.PRINT_WINDOW_FLAGS(2) is PW_RENDERFULLCONTENT
+		// Flags documented here: https://learn.microsoft.com/en-us/windows/win32/gdi/wm-printclient
+		// Without these flags, the window may not render correctly.
+		flags := win32.PRF_ERASEBKGND | win32.PRF_CHILDREN | win32.PRF_CLIENT | win32.PRF_NONCLIENT
+		win32.SendMessage(hwnd, win32.WM_PRINT, uintptr(hdcMem), uintptr(flags))
+	}
+
+	byteCount := w * h * 4 // 4 bytes per pixel (RGBA)
+
+	buf := unsafe.Slice((*byte)(bitsPtr), byteCount)
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+
+	for dst := 0; dst < byteCount; dst += 4 {
+		// RGBA ← buf[B,G,R,_]
+		img.Pix[dst+0], img.Pix[dst+1], img.Pix[dst+2], img.Pix[dst+3] =
+			buf[dst+2], buf[dst+1], buf[dst+0], 0xFF
+	}
 	return img, nil
 }
 
@@ -202,20 +260,19 @@ func ScreenShot(x, y, width, height int) (*image.RGBA, error) {
 	return Capture(x, y, width, height)
 }
 
-// DisplayScreenShot captures a screenshot of the specified display index.
-func DisplayScreenShot(displayIndex int) (*image.RGBA, error) {
-	if displayIndex < 0 {
-		return nil, errors.New("display index cannot be negative")
-	}
+// CaptureRect captures specified region of desktop.
+func CaptureRect(rect image.Rectangle) (*image.RGBA, error) {
+	return Capture(rect.Min.X, rect.Min.Y, rect.Dx(), rect.Dy())
+}
+
+// CaptureDisplay captures the screenshot of the specified display index.
+func CaptureDisplay(displayIndex int) (*image.RGBA, error) {
 	rect := GetDisplayBounds(displayIndex)
-	if rect.Empty() {
-		return nil, errors.New("invalid display index")
-	}
 	return CaptureRect(rect)
 }
 
-// FullScreenShot captures a screenshot of the entire primary display.
-func FullScreenShot() (*image.RGBA, error) {
+// CapturePrimaryDisplay captures the screenshot of the primary display.
+func CapturePrimaryDisplay() (*image.RGBA, error) {
 	screen := GetScreenDimensions()
 	return Capture(0, 0, screen.X, screen.Y)
 }
