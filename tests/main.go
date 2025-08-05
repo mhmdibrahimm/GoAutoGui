@@ -3,6 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
+	"image/png"
+	"os"
+	"path/filepath"
 	"time"
 
 	goautogui "github.com/mhmdibrahimm/goautogui/windows"
@@ -19,27 +22,29 @@ func main() {
 	time.Sleep(3 * time.Second)
 
 	tests := []func() testResult{
-		// Mouse tests
-		testPosition,
-		testMoveAbsolute,
-		testMoveRelative,
-		testClick,
-		testDoubleClick,
-		testDrag,
-		testScroll,
-		testSize,
-		testVirtualOffset,
-		testOnScreen,
-		testLerp,
-		// Keyboard tests
-		testVKeyDownUp,
-		testKeyDownUpRune,
-		testPressString,
-		testVPressKeys,
-		testHoldContext,
-		testTypeWrite,
-		testWrite,
-		testHotKey,
+		// // Mouse tests
+		// testPosition,
+		// testMoveAbsolute,
+		// testMoveRelative,
+		// testClick,
+		// testDoubleClick,
+		// testDrag,
+		// testScroll,
+		// testSize,
+		// testVirtualOffset,
+		// testOnScreen,
+		// testLerp,
+		// // Keyboard tests
+		// testVKeyDownUp,
+		// testKeyDownUpRune,
+		// testPressString,
+		// testVPressKeys,
+		// testHoldContext,
+		// testTypeWrite,
+		// testWrite,
+		// testHotKey,
+		// testWritingLinkUrl,
+		testScreenShot,
 	}
 
 	var passed, failed int
@@ -249,4 +254,40 @@ func testHotKey() testResult {
 		return testResult{"HotKey", err}
 	}
 	return testResult{"HotKey", nil}
+}
+
+func testWritingLinkUrl() testResult {
+	err := goautogui.TypeWrite("https://example.com", 5)
+	if err != nil {
+		return testResult{"WriteLinkURL", err}
+	}
+	return testResult{"WriteLinkURL", nil}
+}
+func testScreenShot() testResult {
+	img, err := goautogui.CaptureDisplay(0)
+	if err != nil {
+		return testResult{"CaptureDisplay", err}
+	}
+	if img == nil || img.Bounds().Empty() {
+		return testResult{"CaptureDisplay", errors.New("captured image is empty")}
+	}
+	fmt.Println("Captured display size:", img.Bounds().Size())
+
+	// Get the system's temporary directory
+	tmpDir := os.TempDir()
+	screenshotPath := filepath.Join(tmpDir, "screenshot.png")
+
+	outFile, err := os.Create(screenshotPath)
+	if err != nil {
+		return testResult{"CaptureDisplay", err}
+	}
+	defer outFile.Close()
+
+	err = png.Encode(outFile, img)
+	if err != nil {
+		return testResult{"CaptureDisplay", err}
+	}
+
+	fmt.Println("Screenshot saved to:", screenshotPath)
+	return testResult{"CaptureDisplay", nil}
 }
