@@ -8,5 +8,5 @@ import (
 
 func init() {
 	// opt into true‑pixel metrics
-	win32.SetProcessDPIAware()
+	win32.SetProcessDpiAwarenessContext(win32.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
 }
