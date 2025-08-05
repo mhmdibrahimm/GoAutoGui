@@ -25,26 +25,26 @@ func main() {
 	time.Sleep(3 * time.Second)
 
 	tests := []func() testResult{
-		// // Mouse tests
-		// testMoveAbsolute,
-		// testMoveRelative,
-		// testClick,
-		// testDoubleClick,
-		// testDrag,
-		// testScroll,
-		// testSize,
+		// Mouse tests
+		testMoveAbsolute,
+		testMoveRelative,
+		testClick,
+		testDoubleClick,
+		testDrag,
+		testScroll,
+		testSize,
 
-		// // Keyboard tests
-		// testVKeyDownUp,
-		// testKeyDownUpRune,
-		// testPressString,
-		// testVPressKeys,
-		// testHoldContext,
-		// testTypeWrite,
-		// testWrite,
-		// testHotKey,
-		// testWritingLinkUrl,
-		// testScreenShot,
+		// Keyboard tests
+		testVKeyDownUp,
+		testKeyDownUpRune,
+		testPressString,
+		testVPressKeys,
+		testHoldContext,
+		testTypeWrite,
+		testWrite,
+		testHotKey,
+		testWritingLinkUrl,
+		testScreenShot,
 
 		// Screen tests
 		testPosition,
