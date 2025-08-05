@@ -1,5 +1,8 @@
 # GoAutoGUI
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/mhmdibrahimm/goautogui.svg)](https://pkg.go.dev/github.com/mhmdibrahimm/goautogui)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mhmdibrahimm/goautogui)](https://goreportcard.com/report/github.com/mhmdibrahimm/goautogui)
+
 GoAutoGUI is a Windows‑only GUI automation library for Go. It lets you drive the mouse and keyboard programmatically using a simple API. It is a port of the popular Python package [pyautogui](https://github.com/asweigart/pyautogui).
 
 **Install**  
