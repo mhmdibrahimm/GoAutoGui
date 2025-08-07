@@ -141,7 +141,8 @@ func Capture(x, y, width, height int) (*image.RGBA, error) {
 	defer win32.SelectObject(memDC, oldObj)
 
 	if ok, _ := win32.BitBlt(memDC, 0, 0, int32(width), int32(height), hdc, int32(x), int32(y), win32.SRCCOPY); ok == 0 {
-		return nil, errors.New("BitBlt failed")
+    	code := win32.GetLastError()
+    	return nil, fmt.Errorf("BitBlt failed, GetLastError=%d", code)
 	}
 
 	var bih win32.BITMAPINFOHEADER
