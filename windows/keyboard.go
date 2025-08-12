@@ -56,7 +56,7 @@ func KeyDown(key rune) error {
 	needsShift := isShiftCharacter(string(key))
 	vkCode := win32.VkKeyScanW(uint16(key))
 	if vkCode == -1 {
-		return fmt.Errorf("There is no VK code for key \"%s\"", string(key))
+		return fmt.Errorf("there is no vk code for key \"%s\"", string(key))
 	}
 	if vkCode > 0x100 { // the vk code will be > 0x100 if it needs shift
 		vkCode -= 0x100
@@ -82,7 +82,7 @@ func KeyUp(key rune) error {
 	needsShift := isShiftCharacter(string(key))
 	vkCode := win32.VkKeyScanW(uint16(key))
 	if vkCode == -1 {
-		return fmt.Errorf("There is no VK code for key \"%s\"", string(key))
+		return fmt.Errorf("there is no vk code for key \"%s\"", string(key))
 	}
 	if vkCode > 0x100 { // the vk code will be > 0x100 if it needs shift
 		vkCode -= 0x100

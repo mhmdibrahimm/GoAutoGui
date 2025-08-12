@@ -104,6 +104,13 @@ func sendMouseEvent(event win32.MOUSE_EVENT_FLAGS, x, y, dwData int) {
 	win32.Mouse_event(event, int32(convertedX), int32(convertedY), int32(dwData), 0)
 }
 
+func sendMessageTimeout(hwnd win32.HWND, msg uint32, wparam win32.WPARAM, lparam win32.LPARAM) {
+	// SMTO_ABORTIFHUNG: return if target thread is not responding
+	// 2000 ms timeout is plenty
+	win32.SendMessageTimeout(hwnd, msg, wparam, lparam,
+		win32.SMTO_ABORTIFHUNG, 2000, nil)
+}
+
 // Send the down up event to Windows by calling the mouse_event() win32
 // function.
 func MouseDown(mb MouseButton, x, y int) (bool, error) {
@@ -242,6 +249,24 @@ func DoubleClick(mb MouseButton, x, y int) error {
 // TripleClick performs a triple mouse button click at the specified (x, y) coordinates.
 func TripleClick(mb MouseButton, x, y int) error {
 	return ClickAt(mb, x, y, 3)
+}
+
+// Click a specific HWND at a SCREEN point (no z-order issues).
+func ClickHwnd(hwnd win32.HWND, screenX, screenY int) {
+	pt := win32.POINT{X: int32(screenX), Y: int32(screenY)}
+
+	// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapwindowpoints
+	// The MapWindowPoints function converts (maps) a set of points from a coordinate space relative to one window to a coordinate space relative to another window.
+	// from=HWND(0) meaning we are mapping from whole screen coordinates to the client area of the specified window.
+	win32.MapWindowPoints(win32.HWND(0), hwnd, &pt, 1)
+	// Clamp to client rect just to be safe
+	cx, cy := clampToClient(hwnd, pt.X, pt.Y)
+
+	lp := win32.LPARAM(uintptr(cx) | uintptr(cy)<<16)
+	// SendMessage is synchronous; use SendMessageTimeout if you fear hangs.
+	sendMessageTimeout(hwnd, win32.WM_MOUSEMOVE, 0, lp)
+	sendMessageTimeout(hwnd, win32.WM_LBUTTONDOWN, win32.WPARAM(win32.MK_LBUTTON), lp)
+	sendMessageTimeout(hwnd, win32.WM_LBUTTONUP, 0, lp)
 }
 
 // Scroll performs a mouse scroll at the specified (x, y) coordinates.
