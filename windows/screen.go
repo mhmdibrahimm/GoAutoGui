@@ -116,7 +116,7 @@ func GetDisplayBounds(displayIndex int) image.Rectangle {
 // createImage creates an image.RGBA with the specified rectangle dimensions.
 func createImage(rect image.Rectangle) (img *image.RGBA, e error) {
 	img = nil
-	e = errors.New("Cannot create image.RGBA")
+	e = errors.New("cannot create image")
 
 	// Ensure the rectangle is valid and not too large.
 	defer func() {
