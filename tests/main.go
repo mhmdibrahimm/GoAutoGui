@@ -33,7 +33,7 @@ func main() {
 		testDrag,
 		testScroll,
 		testSize,
-
+		testClickHwnd,
 		// Keyboard tests
 		testVKeyDownUp,
 		testKeyDownUpRune,
@@ -117,6 +117,15 @@ func testClick() testResult {
 		return testResult{"Click", err}
 	}
 	return testResult{"Click", nil}
+}
+
+func testClickHwnd() testResult {
+	hwnd := win32.HWND(2163360)
+	if hwnd == 0 {
+		return testResult{"ClickHwnd", errors.New("invalid HWND")}
+	}
+	goautogui.ClickHwnd(hwnd, 2900, 829)
+	return testResult{"ClickHwnd", nil}
 }
 
 func testDoubleClick() testResult {
