@@ -26,6 +26,28 @@ func Lerp(x1, y1, x2, y2, t float64) (x, y float64) {
 	return
 }
 
+// Clamps the (x, y) coordinates to the client area of the specified HWND.
+func clampToClient(hwnd win32.HWND, x, y int32) (int32, int32) {
+	var rc win32.RECT
+	if ok, winerr := win32.GetClientRect(hwnd, &rc); ok == 0 && winerr == win32.ERROR_SUCCESS {
+		if x < 0 {
+			x = 0
+		}
+		if y < 0 {
+			y = 0
+		}
+		w := rc.Right - rc.Left
+		h := rc.Bottom - rc.Top
+		if x >= w {
+			x = w - 1
+		}
+		if y >= h {
+			y = h - 1
+		}
+	}
+	return x, y
+}
+
 // CursorPos returns the current mouse cursor coordinates (x, y) in pixels.
 // On Windows, it calls the Win32 GetCursorPos API under the hood.
 func Position() POINT {
@@ -141,8 +163,8 @@ func Capture(x, y, width, height int) (*image.RGBA, error) {
 	defer win32.SelectObject(memDC, oldObj)
 
 	if ok, _ := win32.BitBlt(memDC, 0, 0, int32(width), int32(height), hdc, int32(x), int32(y), win32.SRCCOPY); ok == 0 {
-    	code := win32.GetLastError()
-    	return nil, fmt.Errorf("BitBlt failed, GetLastError=%d", code)
+		code := win32.GetLastError()
+		return nil, fmt.Errorf("BitBlt failed, GetLastError=%d", code)
 	}
 
 	var bih win32.BITMAPINFOHEADER
