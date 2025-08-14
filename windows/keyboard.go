@@ -79,7 +79,8 @@ func KeyDown(key rune) error {
 }
 
 // Sends WM_KEYDOWN for a virtual key to a specific HWND.
-func VKeyDownHwnd(hwnd win32.HWND, vk win32.VIRTUAL_KEY) {
+func VKeyDownHwnd(hwnd win32.HWND, key KeyboardKeys) {
+	vk := win32.VIRTUAL_KEY(key)
 	// Build lParam: repeat=1, scancode, extended-bit if needed
 	scan := win32.MapVirtualKey(uint32(vk), win32.MAPVK_VK_TO_VSC)
 	lp := uintptr(1) | (uintptr(scan) << 16)
@@ -98,7 +99,8 @@ func VKeyDownHwnd(hwnd win32.HWND, vk win32.VIRTUAL_KEY) {
 }
 
 // Sends WM_KEYUP for a virtual key to a specific HWND.
-func VKeyUpHwnd(hwnd win32.HWND, vk win32.VIRTUAL_KEY) {
+func VKeyUpHwnd(hwnd win32.HWND, key KeyboardKeys) {
+	vk := win32.VIRTUAL_KEY(key)
 	// Build lParam mirroring the keydown (same scan/extended), plus up flags
 	scan := win32.MapVirtualKey(uint32(vk), win32.MAPVK_VK_TO_VSC)
 	lp := uintptr(1) | (uintptr(scan) << 16)
