@@ -78,6 +78,47 @@ func KeyDown(key rune) error {
 	return nil
 }
 
+// Sends WM_KEYDOWN for a virtual key to a specific HWND.
+func VKeyDownHwnd(hwnd win32.HWND, vk win32.VIRTUAL_KEY) {
+	// Build lParam: repeat=1, scancode, extended-bit if needed
+	scan := win32.MapVirtualKey(uint32(vk), win32.MAPVK_VK_TO_VSC)
+	lp := uintptr(1) | (uintptr(scan) << 16)
+
+	// Extended keys set bit 24
+	switch vk {
+	case win32.VK_INSERT, win32.VK_DELETE, win32.VK_HOME, win32.VK_END,
+		win32.VK_PRIOR, win32.VK_NEXT,
+		win32.VK_LEFT, win32.VK_RIGHT, win32.VK_UP, win32.VK_DOWN,
+		win32.VK_DIVIDE, win32.VK_NUMLOCK,
+		win32.VK_RCONTROL, win32.VK_RMENU: // Right Ctrl/Alt
+		lp |= 1 << 24
+	}
+
+	sendMessageTimeout(hwnd, win32.WM_KEYDOWN, win32.WPARAM(vk), win32.LPARAM(lp))
+}
+
+// Sends WM_KEYUP for a virtual key to a specific HWND.
+func VKeyUpHwnd(hwnd win32.HWND, vk win32.VIRTUAL_KEY) {
+	// Build lParam mirroring the keydown (same scan/extended), plus up flags
+	scan := win32.MapVirtualKey(uint32(vk), win32.MAPVK_VK_TO_VSC)
+	lp := uintptr(1) | (uintptr(scan) << 16)
+
+	switch vk {
+	case win32.VK_INSERT, win32.VK_DELETE, win32.VK_HOME, win32.VK_END,
+		win32.VK_PRIOR, win32.VK_NEXT,
+		win32.VK_LEFT, win32.VK_RIGHT, win32.VK_UP, win32.VK_DOWN,
+		win32.VK_DIVIDE, win32.VK_NUMLOCK,
+		win32.VK_RCONTROL, win32.VK_RMENU:
+		lp |= 1 << 24
+	}
+
+	// Key-up bits: bit30=previous state, bit31=transition
+	lp |= 1 << 30
+	lp |= 1 << 31
+
+	sendMessageTimeout(hwnd, win32.WM_KEYUP, win32.WPARAM(vk), win32.LPARAM(lp))
+}
+
 // Presses the specified key up. If the key is not valid, it returns an error.
 func KeyUp(key rune) error {
 	needsShift := isShiftCharacter(string(key))
