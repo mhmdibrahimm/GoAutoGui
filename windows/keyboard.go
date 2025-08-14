@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	win32 "github.com/zzl/go-win32api/v2/win32"
 )
@@ -205,6 +206,31 @@ func TypeWrite(message string, interval time.Duration) error {
 // Write simulates typing a message character by character with an optional interval between each character.
 func Write(message string, interval time.Duration) error {
 	return TypeWrite(message, interval)
+}
+
+func WriteToHwnd(hwnd win32.HWND, s string, interval time.Duration) {
+	for _, r := range s {
+		// Skip non-printable (control) runes by convention
+		if !unicode.IsPrint(r) {
+			continue
+		}
+
+		if r <= 0xFFFF {
+			// Single UTF-16 unit
+			sendMessageTimeout(hwnd, win32.WM_CHAR, win32.WPARAM(r), 1)
+		} else {
+			// Encode as UTF-16 surrogate pair
+			cp := uint32(r) - 0x10000
+			hi := 0xD800 + (cp >> 10)
+			lo := 0xDC00 + (cp & 0x3FF)
+			sendMessageTimeout(hwnd, win32.WM_CHAR, win32.WPARAM(hi), 1)
+			sendMessageTimeout(hwnd, win32.WM_CHAR, win32.WPARAM(lo), 1)
+		}
+
+		if interval > 0 {
+			time.Sleep(interval)
+		}
+	}
 }
 
 // Performs key down presses on the arguments passed in order, then performs key releases in reverse order.
